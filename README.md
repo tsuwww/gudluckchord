@@ -1,0 +1,2 @@
+# gudluckchord
+kumpulan chord gitar
