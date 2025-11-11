@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gudlucky Chord 🎶</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #fafafa;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+  }
+  header { background:#333;color:white;text-align:center;padding:15px;font-size:24px;}
+  nav { background:#444;display:flex;justify-content:center;}
+  nav button {background:none;border:none;color:white;padding:14px 20px;cursor:pointer;font-size:16px;transition:background 0.3s;}
+  nav button:hover {background:#666;}
+  .content {padding:20px;text-align:center;}
+  .hidden {display:none;}
+  #searchBox {margin:20px auto;width:80%;max-width:400px;display:flex;gap:5px;}
+  #searchInput {flex:1;padding:10px;border:1px solid #999;border-radius:6px;font-size:16px;}
+  #searchBtn {padding:10px 15px;border:none;background:#333;color:white;border-radius:6px;cursor:pointer;}
+  #chordArea {white-space:pre-wrap;text-align:left;background:#fff;border-radius:10px;padding:20px;max-width:600px;margin:0 auto;line-height:1.6;overflow-y:auto;max-height:400px;font-family:monospace;font-size:20px;}
+  #controls {margin-top:15px;}
+  #controls button {background:#222;color:white;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;margin:5px;}
+  footer {background:#333;color:white;text-align:center;padding:10px;position:fixed;bottom:0;width:100%;font-size:14px;}
+</style>
+</head>
+<body>
+
+<header>🎸 Gudlucky Chord</header>
+
+<nav>
+  <button onclick="showContent('menu')">Menu</button>
+  <button onclick="showContent('kursus')">Kursus</button>
+  <button onclick="showContent('bukumusik')">Buku Musik</button>
+  <button onclick="showContent('artikel')">Artikel</button>
+</nav>
+
+<!-- MENU -->
+<div class="content" id="menu">
+  <h2>Selamat Datang di Gudlucky Chord</h2>
+  <p>Temukan chord dan belajar musik dengan mudah di sini!</p>
+
+  <div id="searchBox">
+    <input type="text" id="searchInput" placeholder="Cari lagu... (contoh: Everything You Are)">
+    <button id="searchBtn">Cari</button>
+  </div>
+
+  <div id="chordArea"></div>
+
+  <div id="controls">
+    <button onclick="transpose(1)">Transpose +</button>
+    <button onclick="transpose(-1)">Transpose -</button>
+    <button onclick="toggleScroll()">Auto-Scroll</button>
+  </div>
+</div>
+
+<!-- KURSUS -->
+<div class="content hidden" id="kursus">
+  <h2>Kursus Musik</h2>
+  <ul style="list-style:none;">
+    <li>🎸 Gitar</li>
+    <li>🎹 Piano</li>
+    <li>🎻 Biola</li>
+  </ul>
+</div>
+
+<!-- BUKU MUSIK -->
+<div class="content hidden" id="bukumusik">
+  <h2>Buku Musik</h2>
+  <p>Koleksi chord dan lirik lagu populer dari berbagai genre.</p>
+</div>
+
+<!-- ARTIKEL -->
+<div class="content hidden" id="artikel">
+  <h2>Artikel Musik</h2>
+  <p>Baca tips, teori, dan inspirasi tentang musik dan latihan instrumen.</p>
+</div>
+
+<footer>© 2025 Gudlucky Chord | Belajar Musik Jadi Menyenangkan</footer>
+
+<!-- FIREBASE SCRIPT -->
+<script type="module">
+  // Import SDK Firebase (v11)
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+  import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+  // Konfigurasi Firebase kamu
+  const firebaseConfig = {
+    apiKey: "AIzaSyCaueCI-0Vs86GsH4OkcxJu7AjKeiq2zv8",
+    authDomain: "gudlucky-chord.firebaseapp.com",
+    projectId: "gudlucky-chord",
+    storageBucket: "gudlucky-chord.firebasestorage.app",
+    messagingSenderId: "79473039535",
+    appId: "1:79473039535:web:da31a16b121cf10fdcdc5a",
+    measurementId: "G-V358WDYW5G"
+  };
+
+  // Inisialisasi Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // --- Variabel global ---
+  let originalChord = "";
+  let scrollInterval;
+  let isScrolling = false;
+  let currentTranspose = 0;
+
+  const chords = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  const flats = {"Db":"C#","Eb":"D#","Gb":"F#","Ab":"G#","Bb":"A#"};
+
+  // --- Fungsi Navigasi ---
+  window.showContent = function(id){
+    document.querySelectorAll('.content').forEach(c => c.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+  };
+
+  // --- Fungsi Pencarian Lagu dari Firestore ---
+  document.getElementById("searchBtn").addEventListener("click", async () => {
+    const queryText = document.getElementById("searchInput").value.trim().toLowerCase();
+    const area = document.getElementById("chordArea");
+
+    if (!queryText) {
+      area.textContent = "Masukkan judul lagu untuk mencari.";
+      return;
+    }
+
+    const songsRef = collection(db, "songs");
+    const q = query(songsRef, where("title", "==", queryText));
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      area.textContent = "Lagu tidak ditemukan di database Firebase.";
+      return;
+    }
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      originalChord = data.chord;
+      area.textContent = data.chord;
+      currentTranspose = 0;
+    });
+  });
+
+  // --- Fungsi Transpose ---
+  window.transpose = function(semitones){
+    if(!originalChord) return;
+    currentTranspose += semitones;
+    const transposed = originalChord.replace(/\b([A-G][b#]?)(m?7?|maj7?|sus\d?|dim)?\b/g, function(match, chord, suffix){
+      let c = flats[chord] || chord;
+      let i = chords.indexOf(c);
+      if(i === -1) return match;
+      let newIndex = (i + semitones + chords.length) % chords.length;
+      return chords[newIndex] + (suffix || "");
+    });
+    document.getElementById('chordArea').textContent = transposed;
+  };
+
+  // --- Auto Scroll ---
+  window.toggleScroll = function(){
+    const area = document.getElementById('chordArea');
+    if(!isScrolling){
+      scrollInterval = setInterval(()=>{area.scrollTop += 1;}, 100);
+      isScrolling = true;
+    } else {
+      clearInterval(scrollInterval);
+      isScrolling = false;
+    }
+  };
+</script>
+
+</body>
+</html>
